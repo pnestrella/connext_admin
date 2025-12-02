@@ -40,8 +40,6 @@ export default function Dashboard() {
 
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
 
-
-
   const limit = 10; // items per page
 
   const summaryCards = useMemo(
@@ -171,7 +169,7 @@ export default function Dashboard() {
 
       <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
       <p className="text-gray-600 mb-6">
-        A quick overview of what you need to know.
+        A quick overview of what you
       </p>
 
       {/* Summary Cards */}

@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Flag, LogOut, Settings, House } from "lucide-react";
+import { Flag, LogOut, Settings, House,Briefcase } from "lucide-react";
 import { useAuth } from "../context/AuthHook";
 import { useRouter } from "next/navigation";
 
@@ -62,6 +62,12 @@ export default function Sidebar() {
             <Link href="/reports" className={getLinkClass("/reports")}>
               <Flag size={16}></Flag>
               <span>Reports</span>
+            </Link>
+          </li>
+          <li>
+            <Link href="/scrape" className={getLinkClass("/scrape")}>
+              <Briefcase size={16}></Briefcase>
+              <span>External Jobs</span>
             </Link>
           </li>
         </ul>
