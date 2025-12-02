@@ -5,22 +5,69 @@ import Sidebar from "../../../components/Sidebar";
 import { createScrapeBatch, deleteScrapeJob, getAllScrapedJobs, getScrapeBatches, postJobsExternal, scrapeJobs } from "../../../api/scrape";
 import { useRouter } from "next/navigation";
 
+interface Batch {
+  _id: string;
+  batchUID: string;
+  duration: number;
+  numOfJobScraped: number;
+  type: string;
+  scrapeDate: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+interface Job {
+  _id: string;
+  jobUID: string;
+  batchUID: string;
+  jobTitle: string;
+  jobNormalized: string;
+  jobIndustry: string;
+  jobDescription: string;
+  jobSkills: string[];
+  employment: string[];
+  workTypes: string[];
+  companyName?: string | null;
+  salaryRange: {
+    min: number | null;
+    max: number | null;
+    currency: string | null;
+    frequency: string | null;
+  };
+  location?: string | null | {
+    display_name?: string;
+    city?: string;
+    province?: string;
+    country?: string;
+  };
+  isExternal: boolean;
+  status: boolean;
+  profilePic: string;
+  link: string;
+  createdAt: string;
+  scrapedDate: string;
+  updatedAt: string;
+  interactionCount?: number; // <-- Added property
+}
+
+
 export default function Page() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [scrapedJobs, setScrapedJobs] = useState([]);
+  const [scrapedJobs, setScrapedJobs] = useState<Job[]>([]);
   const [scrapeType, setScrapeType] = useState("");
   const [searchQuery, setSearchQuery] = useState(""); // ✅ FIXED: Added missing state
   const [externalSearchQuery, setExternalSearchQuery] = useState("");
-  const [expandedDescriptions, setExpandedDescriptions] = useState({});
-  const [deleteModal, setDeleteModal] = useState({ show: false, jobUID: null });
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const [deleteModal, setDeleteModal] = useState<{ show: boolean; jobUID: string | null }>({ show: false, jobUID: null });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [cancelConfirmation, setCancelConfirmation] = useState(false);
   const [scrapeDuration, setScrapeDuration] = useState(0);
-  const [batches, setBatches] = useState([]);
-  const [externalJobs, setExternalJobs] = useState([]);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [externalJobs, setExternalJobs] = useState<Job[]>([]);
 
   const router = useRouter();
 
@@ -29,8 +76,8 @@ export default function Page() {
   const [currentTableView, setCurrentTableView] = useState('batches');
 
   // External jobs expanded state and delete state
-  const [expandedExternalJob, setExpandedExternalJob] = useState(null);
-  const [externalDeleteModal, setExternalDeleteModal] = useState({ show: false, jobUID: null });
+  const [expandedExternalJob, setExpandedExternalJob] = useState<string | null>(null);
+  const [externalDeleteModal, setExternalDeleteModal] = useState<{ show: boolean; jobUID: string | null }>({ show: false, jobUID: null });
 
   //get the batches
   const getBatches = async () => {
@@ -61,21 +108,21 @@ export default function Page() {
     getExternalJobs();
   }, []);
 
-  const scrapeStartTime = useRef(null);
-  const scrapeIntervalRef = useRef(null);
+  const scrapeStartTime = useRef<number | null>(null);
+  const scrapeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const formatDuration = (seconds) => {
+  const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}m ${secs}s`;
   };
 
-  const formatDate = (isoString) => {
+  const formatDate = (isoString: string) => {
     return new Date(isoString).toLocaleString();
   };
 
   // Format location for display and search
-  const formatLocation = (location) => {
+  const formatLocation = (location: string | { display_name?: string; city?: string; province?: string; country?: string } | null | undefined) => {
     if (!location) return null;
     if (typeof location === 'string') return location;
     return location.display_name || location.city || 'N/A';
@@ -91,12 +138,12 @@ export default function Page() {
       regex.test(job.profilePic) ||
       (job.jobSkills && job.jobSkills.some((skill) => regex.test(skill))) ||
       regex.test(job.jobIndustry || '') ||
-      (job.location && regex.test(job.location))
+      (job.location && regex.test(formatLocation(job.location) || ''))
     );
   });
 
   // Enhanced search function for external jobs
-  const filterExternalJobs = (jobs, query) => {
+  const filterExternalJobs = (jobs: Job[], query: string) => {
     if (!query.trim()) return jobs;
     const regex = new RegExp(query.trim(), "i");
 
@@ -114,7 +161,7 @@ export default function Page() {
       const locationStr = formatLocation(job.location);
       if (locationStr && regex.test(locationStr)) return true;
 
-      if (job.location) {
+      if (job.location && typeof job.location === 'object') {
         if (regex.test(job.location.display_name || '')) return true;
         if (regex.test(job.location.city || '')) return true;
         if (regex.test(job.location.province || '')) return true;
@@ -155,8 +202,8 @@ export default function Page() {
     setIsOpen(false);
     try {
       const res = await scrapeJobs("full");
-      const uniqueJobs = Array.from(new Map((res.data.jobs || []).map((job) => [job.jobUID, job])).values());
-      setScrapedJobs(uniqueJobs);
+      const uniqueJobs = Array.from(new Map((res.data.jobs || []).map((job: Job) => [job.jobUID, job])).values());
+      setScrapedJobs(uniqueJobs as Job[]);
       setShowResults(true);
     } catch (err) {
       console.log("Fullscrape Error", err);
@@ -174,8 +221,8 @@ export default function Page() {
     setIsOpen(false);
     try {
       const res = await scrapeJobs("partial");
-      const uniqueJobs = Array.from(new Map((res.data.jobs || []).map((job) => [job.jobUID, job])).values());
-      setScrapedJobs(uniqueJobs);
+      const uniqueJobs = Array.from(new Map((res.data.jobs || []).map((job: Job) => [job.jobUID, job])).values());
+      setScrapedJobs(uniqueJobs as Job[]);
       setShowResults(true);
     } catch (err) {
       console.log("Partial scrape Error", err);
@@ -253,7 +300,7 @@ export default function Page() {
     setCancelConfirmation(false);
   };
 
-  const handleDeleteClick = (jobUID) => {
+  const handleDeleteClick = (jobUID: string) => {
     setDeleteModal({ show: true, jobUID });
   };
 
@@ -268,7 +315,7 @@ export default function Page() {
     setDeleteModal({ show: false, jobUID: null });
   };
 
-  const toggleDescription = (jobUID) => {
+  const toggleDescription = (jobUID: string) => {
     setExpandedDescriptions((prev) => ({
       ...prev,
       [jobUID]: !prev[jobUID],
@@ -277,7 +324,7 @@ export default function Page() {
 
   const jobToDelete = scrapedJobs.find((job) => job.jobUID === deleteModal.jobUID);
 
-  const formatSalary = (salaryRange) => {
+  const formatSalary = (salaryRange: Job["salaryRange"]) => {
     if (!salaryRange?.min && !salaryRange?.max) return null;
     if (salaryRange.min && salaryRange.max) {
       return `${salaryRange.currency || ""}${salaryRange.min.toLocaleString()}-${salaryRange.max.toLocaleString()}/${salaryRange.frequency || "yr"}`;
@@ -286,11 +333,11 @@ export default function Page() {
   };
 
   // External jobs handlers
-  const handleRowClick = (jobUID) => {
+  const handleRowClick = (jobUID: string) => {
     setExpandedExternalJob(expandedExternalJob === jobUID ? null : jobUID);
   };
 
-  const handleExternalDeleteClick = (jobUID, e) => {
+  const handleExternalDeleteClick = (jobUID: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setExternalDeleteModal({ show: true, jobUID });
   };
@@ -556,7 +603,7 @@ export default function Page() {
                               {job.profilePic}
                             </span>
                           </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" title={formatLocation(job.location)}>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900" title={formatLocation(job.location) ?? undefined}>
                             {formatLocation(job.location) || job.workTypes?.join(', ') || 'N/A'}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -622,7 +669,7 @@ export default function Page() {
                                   <div className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
                                     <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Details</div>
                                     <div className="space-y-2 text-sm">
-                                      <div><span className="text-gray-500">Location:</span> <span title={formatLocation(job.location)}>{formatLocation(job.location) || job.workTypes?.join(', ') || 'N/A'}</span></div>
+                                      <div><span className="text-gray-500">Location:</span> <span title={formatLocation(job.location) ?? undefined}>{formatLocation(job.location) || job.workTypes?.join(', ') || 'N/A'}</span></div>
                                       <div><span className="text-gray-500">Salary:</span> {formatSalary(job.salaryRange) || 'N/A'}</div>
                                       <div><span className="text-gray-500">Swipes:</span> <span className="font-semibold text-pink-600">{job.interactionCount || 0}</span></div>
                                       <div><span className="text-gray-500">Industry:</span> {job.jobIndustry || 'N/A'}</div>
@@ -717,7 +764,7 @@ export default function Page() {
                             <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
                               <span className="font-medium">{job.profilePic}</span>
                               {job.employment && <span>{job.employment}</span>}
-                              {job.location && <span>• {job.location}</span>}
+                              {job.location && <span>• {formatLocation(job.location)}</span>}
                             </div>
                             {formatSalary(job.salaryRange) && (
                               <div className="mb-3 p-2 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg">

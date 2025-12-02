@@ -5,6 +5,53 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getScrapeBatch, getScrapeJobs } from "../../../../api/scrape";
 
+interface Job {
+    _id: string;
+    jobUID: string;
+    batchUID: string;
+    jobTitle: string;
+    jobNormalized: string;
+    jobIndustry: string;
+    jobDescription: string;
+    jobSkills: string[];
+    employment: string[];
+    workTypes: string[];
+    companyName?: string | null;
+    salaryRange: {
+        min: number | null;
+        max: number | null;
+        currency: string | null;
+        frequency: string | null;
+    };
+    location?: string | null | {
+        display_name?: string;
+        city?: string;
+        province?: string;
+        country?: string;
+    };
+    isExternal: boolean;
+    status: boolean;
+    profilePic: string;
+    link: string;
+    createdAt: string;
+    scrapedDate: string;
+    updatedAt: string;
+}
+
+interface Batch {
+    _id: string;
+    batchUID: string;
+    duration: number;
+    numOfJobScraped: number;
+    type: string;
+    scrapeDate: string;
+    createdAt: string;
+    updatedAt: string;
+    __v: number;
+}
+
+
+
 export default function BatchPage() {
     const params = useParams();
     const router = useRouter();
@@ -12,16 +59,7 @@ export default function BatchPage() {
 
     const [isLoading, setIsLoading] = useState(true);
     // const [jobs, setJobs] = useState<any[]>([]);
-    const [batch, setBatch] = useState<{
-        _id: string;
-        batchUID: string;
-        duration: number;
-        numOfJobScraped: number;
-        type: string;
-        scrapeDate: string;
-        createdAt: string;
-        updatedAt: string;
-    } | null>(null);
+    const [batch, setBatch] = useState<Batch | null>(null);  // Single batch, not array
 
     useEffect(() => {
         if (!batchUID) return;
@@ -40,8 +78,7 @@ export default function BatchPage() {
 
     //jobs
 
-    const [jobs,setJobs] = useState([
-    ])
+    const [jobs, setJobs] = useState<Job[]>([]);
 
 
     useEffect(() => {
@@ -50,7 +87,7 @@ export default function BatchPage() {
         const fetchJobs = async () => {
             try {
                 const res = await getScrapeJobs(batchUID);
-                console.log(res.data,'resyy')
+                console.log(res.data, 'resyy')
                 setJobs(res.data);
             } catch (err) {
                 console.error(err);
@@ -93,7 +130,7 @@ export default function BatchPage() {
                                 <dt className="text-sm font-medium uppercase tracking-wide text-indigo-600 mb-1">
                                     Batch UID
                                 </dt>
-                                <dd className="break-words text-lg font-semibold">{batch.batchUID}</dd>
+                                <dd className="break-words text-lg font-semibold">{batch?.batchUID}</dd>
                             </div>
                             <div className="border-l-4 border-indigo-500 pl-4">
                                 <dt className="text-sm font-medium uppercase tracking-wide text-indigo-600 mb-1">
@@ -137,14 +174,14 @@ export default function BatchPage() {
                 ) : (
                     <div className="space-y-6">
                         {jobs.map((job) => (
-                            <div key={job.jobUID} className="p-6 bg-white rounded shadow hover:shadow-lg transition">
+                            <div key={job?.jobUID} className="p-6 bg-white rounded shadow hover:shadow-lg transition">
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="font-semibold text-lg text-gray-900">{job.jobTitle}</h3>
 
                                 </div>
 
                                 <div className="flex flex-wrap gap-2 mb-3">
-                                    {job.jobSkills?.map((skill: string) => (
+                                    {job?.jobSkills?.map((skill: string) => (
                                         <span
                                             key={skill}
                                             className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-medium"
@@ -172,14 +209,14 @@ export default function BatchPage() {
                                     )}
                                 </div>
 
-                                {(job.salaryRange?.min || job.salaryRange?.max) && (
+                                {(job.salaryRange.min !== null || job.salaryRange.max !== null) && (
                                     <div className="mb-3 text-sm font-semibold text-gray-900">
-                                        Salary:&nbsp;
-                                        {job.salaryRange.min && job.salaryRange.max
+                                        Salary: {job.salaryRange.min && job.salaryRange.max
                                             ? `${job.salaryRange.currency ?? ""} ${job.salaryRange.min.toLocaleString()} - ${job.salaryRange.max.toLocaleString()} / ${job.salaryRange.frequency ?? ""}`
-                                            : "Not specified"}
+                                            : "Salary range available"}
                                     </div>
                                 )}
+
 
                                 <a
                                     href={job.link}
